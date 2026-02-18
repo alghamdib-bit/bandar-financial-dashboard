@@ -235,16 +235,68 @@ let currentPage = 1;
 const PAGE_SIZE = 50;
 
 const WORKER_URL = 'https://bandar-financial-dashboard.alghamdi-b.workers.dev';
-const DASHBOARD_SECRET = '6f6c2453dd2295fce13187b2b133643c8893cde98053726b158af69575cc94d1';
-const FETCH_OPTS = { headers: { 'X-Dashboard-Secret': DASHBOARD_SECRET } };
+let SESSION_SECRET = null; // Set after password unlock — never hardcoded
+
+// ─── Password Gate ─────────────────────────────────────────────────
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function showPasswordScreen() {
+  document.body.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1117;">
+      <div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:14px;padding:40px 48px;width:100%;max-width:360px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">💰</div>
+        <h2 style="font-size:20px;font-weight:600;color:#e4e4e7;margin-bottom:6px;">Budget Dashboard</h2>
+        <p style="font-size:13px;color:#8b8d97;margin-bottom:28px;">Enter your password to continue</p>
+        <input id="pwInput" type="password" placeholder="Password" autofocus
+          style="width:100%;padding:10px 14px;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;color:#e4e4e7;font-size:15px;outline:none;margin-bottom:12px;"
+          onkeydown="if(event.key==='Enter')unlock()"/>
+        <button onclick="unlock()"
+          style="width:100%;padding:10px;background:#3b82f6;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:500;cursor:pointer;">
+          Unlock
+        </button>
+        <p id="pwError" style="color:#ef4444;font-size:13px;margin-top:12px;min-height:18px;"></p>
+      </div>
+    </div>`;
+}
+
+async function unlock() {
+  const pw = document.getElementById('pwInput').value;
+  if (!pw) return;
+  const hashed = await sha256(pw);
+  // Test the secret against the Worker before fully unlocking
+  try {
+    const res = await fetch(WORKER_URL + '/health', { headers: { 'X-Dashboard-Secret': hashed } });
+    if (res.ok) {
+      SESSION_SECRET = hashed;
+      sessionStorage.setItem('ds', hashed);
+      location.reload(); // reload with secret in sessionStorage
+    } else {
+      document.getElementById('pwError').textContent = 'Incorrect password.';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  } catch(e) {
+    document.getElementById('pwError').textContent = 'Connection error. Try again.';
+  }
+}
 
 async function loadData() {
+  // Retrieve secret from session (set after password unlock)
+  SESSION_SECRET = sessionStorage.getItem('ds');
+  if (!SESSION_SECRET) { showPasswordScreen(); return; }
+
+  const FETCH_OPTS = { headers: { 'X-Dashboard-Secret': SESSION_SECRET } };
   try {
     const [txRes, budgetRes, catRes] = await Promise.all([
       fetch(WORKER_URL + '/transactions', FETCH_OPTS),
       fetch(WORKER_URL + '/budgets', FETCH_OPTS),
       fetch(WORKER_URL + '/categories', FETCH_OPTS),
     ]);
+    // If session expired / wrong secret, show password screen again
+    if (txRes.status === 401) { sessionStorage.removeItem('ds'); showPasswordScreen(); return; }
     const txData = await txRes.json();
     allTransactions = txData.transactions;
     const budgetData = await budgetRes.json();
@@ -265,7 +317,7 @@ async function loadData() {
     setCurrentPeriod();
     render();
   } catch (e) {
-    document.querySelector('.container').innerHTML = '<p style="color:var(--red);padding:40px;">Error loading data. Make sure transactions.json, budgets.json, and categories.json exist in data/</p>';
+    document.querySelector('.container').innerHTML = '<p style="color:var(--red);padding:40px;">Error loading data. Please refresh and try again.</p>';
     console.error(e);
   }
 }

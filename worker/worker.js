@@ -283,8 +283,8 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    // --- Secret token auth (skip for /health) ---
-    if (path !== '/health') {
+    // --- Secret token auth (applied to ALL routes including /health) ---
+    if (true) {
       const secret = env.DASHBOARD_SECRET;
       const provided = request.headers.get('X-Dashboard-Secret') || url.searchParams.get('secret');
       if (!secret || provided !== secret) {
