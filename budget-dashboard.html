@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget Dashboard</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d27;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --muted: #8b8d97;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --purple: #a855f7;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+header h1 { font-size: 24px; font-weight: 600; }
+.period-nav { display: flex; align-items: center; gap: 8px; }
+.period-nav button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.period-nav button:hover { border-color: var(--blue); }
+.period-nav span { font-size: 14px; color: var(--muted); min-width: 200px; text-align: center; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.tab { padding: 8px 16px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab:hover { color: var(--text); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Summary cards */
+.summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.summary-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.summary-card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.green { color: var(--green); }
+.yellow { color: var(--yellow); }
+.red { color: var(--red); }
+
+/* Category progress */
+.categories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.cat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.cat-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.cat-name { font-size: 13px; font-weight: 500; }
+.cat-amount { font-size: 13px; font-weight: 600; }
+.cat-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.cat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.cat-footer { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: var(--muted); }
+
+/* Chart */
+.chart-container { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+.chart-container h3 { font-size: 14px; margin-bottom: 12px; }
+.chart { display: flex; align-items: flex-end; gap: 2px; height: 160px; }
+.chart-bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.chart-bar { width: 100%; min-width: 4px; max-width: 24px; border-radius: 2px 2px 0 0; background: var(--blue); transition: height 0.3s; position: relative; }
+.chart-bar:hover { opacity: 0.8; }
+.chart-bar .tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; margin-bottom: 4px; z-index: 10; }
+.chart-bar:hover .tooltip { display: block; }
+.chart-label { font-size: 9px; color: var(--muted); margin-top: 4px; writing-mode: vertical-lr; text-orientation: mixed; max-height: 40px; overflow: hidden; }
+
+/* Transaction table */
+.table-controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.table-controls input, .table-controls select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+.table-controls input { flex: 1; min-width: 200px; }
+.table-controls select { min-width: 150px; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; }
+thead th { padding: 10px 14px; text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; cursor: pointer; }
+thead th:hover { color: var(--text); }
+tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
+tbody tr:hover { background: rgba(59, 130, 246, 0.05); }
+.cat-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+.source-badge { font-size: 11px; color: var(--muted); }
+.pagination { display: flex; justify-content: center; gap: 4px; margin-top: 12px; }
+.pagination button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.pagination button.active { border-color: var(--blue); color: var(--blue); }
+
+/* Monthly history */
+.month-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.month-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.month-header h3 { font-size: 15px; }
+.month-details { margin-top: 12px; display: none; }
+.month-details.open { display: block; }
+.month-cat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.month-cat-row:last-child { border: none; }
+
+/* Notion export */
+.export-btn { background: var(--blue); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.export-btn:hover { opacity: 0.9; }
+.export-btn:active { transform: scale(0.98); }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--green); color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; display: none; z-index: 100; }
+.toast.show { display: block; animation: fadein 0.3s; }
+@keyframes fadein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.amount-right { text-align: right; }
+
+/* Search overlay */
+.search-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.search-btn:hover { border-color: var(--blue); color: var(--text); }
+.search-btn kbd { background: var(--border); padding: 1px 5px; border-radius: 3px; font-size: 11px; font-family: inherit; }
+.search-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: none; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+.search-overlay.open { display: flex; animation: fadein 0.15s; }
+.search-modal { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 600px; max-width: 92vw; max-height: 70vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.search-modal-input { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); gap: 10px; }
+.search-modal-input svg { flex-shrink: 0; color: var(--muted); }
+.search-modal-input input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-size: 16px; }
+.search-modal-input input::placeholder { color: var(--muted); }
+.search-results { overflow-y: auto; padding: 8px; flex: 1; }
+.search-result-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 6px; cursor: pointer; gap: 12px; }
+.search-result-item:hover { background: rgba(59,130,246,0.1); }
+.search-result-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.search-result-merchant { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-result-meta { font-size: 11px; color: var(--muted); display: flex; gap: 8px; }
+.search-result-amount { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.search-empty { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+.search-footer { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Budget Dashboard</h1>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <button class="search-btn" onclick="openSearch()">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        Search
+        <kbd>/</kbd>
+      </button>
+      <div class="period-nav">
+        <button onclick="prevPeriod()">&larr;</button>
+        <span id="periodLabel">Loading...</span>
+        <button onclick="nextPeriod()">&rarr;</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Search Overlay -->
+  <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
+    <div class="search-modal">
+      <div class="search-modal-input">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="globalSearchInput" placeholder="Search all transactions..." oninput="globalSearch()" autofocus>
+      </div>
+      <div class="search-results" id="globalSearchResults">
+        <div class="search-empty">Type to search across all transactions</div>
+      </div>
+      <div class="search-footer" id="globalSearchFooter">Press <kbd style="background:var(--border);padding:1px 5px;border-radius:3px;">Esc</kbd> to close</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('transactions')">Transactions</button>
+    <button class="tab" onclick="switchTab('history')">Monthly History</button>
+    <button class="tab" onclick="switchTab('export')">Export</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="summary-row" id="summaryCards"></div>
+    <div class="chart-container">
+      <h3>Daily Spending</h3>
+      <div class="chart" id="dailyChart"></div>
+    </div>
+    <h3 style="font-size:15px; margin-bottom:12px;">Category Budgets</h3>
+    <div class="categories-grid" id="categoriesGrid"></div>
+  </div>
+
+  <!-- TRANSACTIONS TAB -->
+  <div id="tab-transactions" class="tab-content">
+    <div class="table-controls">
+      <input type="text" id="searchInput" placeholder="Search merchant..." oninput="filterTable()">
+      <select id="catFilter" onchange="filterTable()">
+        <option value="">All Categories</option>
+      </select>
+      <select id="sourceFilter" onchange="filterTable()">
+        <option value="">All Sources</option>
+        <option value="alrajhi">Al Rajhi</option>
+        <option value="sab">SAB</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto; border-radius:10px;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable('date')">Date</th>
+            <th onclick="sortTable('merchant')">Merchant</th>
+            <th onclick="sortTable('amount')">Amount (SAR)</th>
+            <th onclick="sortTable('category')">Category</th>
+            <th onclick="sortTable('source')">Source</th>
+          </tr>
+        </thead>
+        <tbody id="txBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <!-- HISTORY TAB -->
+  <div id="tab-history" class="tab-content">
+    <div id="monthlyHistory"></div>
+  </div>
+
+  <!-- EXPORT TAB -->
+  <div id="tab-export" class="tab-content">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:24px;">
+      <h3 style="margin-bottom:12px;">Export to Notion</h3>
+      <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Copies a formatted markdown summary of the current budget period to your clipboard. Paste into Notion.</p>
+      <button class="export-btn" onclick="exportToNotion()">Copy Summary to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+// ─── Data Loading ─────────────────────────────────────────────────
+let allTransactions = [];
+let budgets = {};
+let categories = [];
+let currentPeriodStart = null;
+let sortCol = 'date';
+let sortDir = -1;
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+async function loadData() {
+  try {
+    const [txRes, budgetRes, catRes] = await Promise.all([
+      fetch('data/transactions.json'),
+      fetch('data/budgets.json'),
+      fetch('data/categories.json'),
+    ]);
+    allTransactions = await txRes.json();
+    const budgetData = await budgetRes.json();
+    budgets = budgetData.categories;
+    const catData = await catRes.json();
+    categories = catData.categories.map(c => c.name);
+
+    // Populate category filter
+    const catFilter = document.getElementById('catFilter');
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      catFilter.appendChild(opt);
+    });
+
+    // Set current period
+    setCurrentPeriod();
+    render();
+  } catch (e) {
+    document.querySelector('.container').innerHTML = '<p style="color:var(--red);padding:40px;">Error loading data. Make sure transactions.json, budgets.json, and categories.json exist in data/</p>';
+    console.error(e);
+  }
+}
+
+// ─── Period Logic (25th to 24th) ──────────────────────────────────
+function setCurrentPeriod() {
+  const now = new Date();
+  if (now.getDate() >= 25) {
+    currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 25);
+  } else {
+    currentPeriodStart = new Date(now.getFullYear(), now.getMonth() - 1, 25);
+  }
+}
+
+function getPeriodEnd(start) {
+  return new Date(start.getFullYear(), start.getMonth() + 1, 24);
+}
+
+function formatDate(d) {
+  return d.toISOString().split('T')[0];
+}
+
+function periodLabel(start) {
+  const end = getPeriodEnd(start);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${start.getDate()} ${months[start.getMonth()]} ${start.getFullYear()} - ${end.getDate()} ${months[end.getMonth()]} ${end.getFullYear()}`;
+}
+
+function prevPeriod() {
+  currentPeriodStart = new Date(currentPeriodStart.getFullYear(), currentPeriodStart.getMonth() - 1, 25);
+  render();
+}
+
+function nextPeriod() {
+  currentPeriodStart = new Date(currentPeriodStart.getFullYear(), currentPeriodStart.getMonth() + 1, 25);
+  render();
+}
+
+function getPeriodTransactions(start) {
+  const startStr = formatDate(start);
+  const endStr = formatDate(getPeriodEnd(start));
+  return allTransactions.filter(t => t.date >= startStr && t.date <= endStr);
+}
+
+// ─── Rendering ────────────────────────────────────────────────────
+function render() {
+  document.getElementById('periodLabel').textContent = periodLabel(currentPeriodStart);
+  const txns = getPeriodTransactions(currentPeriodStart);
+  renderSummary(txns);
+  renderCategories(txns);
+  renderDailyChart(txns);
+  filterTable();
+  renderHistory();
+}
+
+function renderSummary(txns) {
+  const totalSpent = txns.reduce((s, t) => s + t.amount, 0);
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
+  const pct = totalBudget > 0 ? (totalSpent / totalBudget * 100) : 0;
+  const remaining = totalBudget - totalSpent;
+
+  // Days in period
+  const end = getPeriodEnd(currentPeriodStart);
+  const totalDays = Math.ceil((end - currentPeriodStart) / 86400000) + 1;
+  const today = new Date();
+  const elapsed = Math.max(1, Math.min(totalDays, Math.ceil((today - currentPeriodStart) / 86400000)));
+  const dailyBurn = totalSpent / elapsed;
+  const projectedTotal = dailyBurn * totalDays;
+
+  const pctClass = pct > 100 ? 'red' : pct > 80 ? 'yellow' : 'green';
+  const projClass = projectedTotal > totalBudget ? 'red' : projectedTotal > totalBudget * 0.8 ? 'yellow' : 'green';
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="summary-card">
+      <div class="label">Total Spent</div>
+      <div class="value ${pctClass}">SAR ${totalSpent.toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0})}</div>
+      <div class="sub">${pct.toFixed(1)}% of SAR ${totalBudget.toLocaleString()} budget</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Remaining</div>
+      <div class="value ${remaining >= 0 ? 'green' : 'red'}">SAR ${Math.abs(remaining).toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0})}</div>
+      <div class="sub">${remaining >= 0 ? 'under budget' : 'over budget'}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Daily Burn Rate</div>
+      <div class="value">SAR ${dailyBurn.toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0})}</div>
+      <div class="sub">Day ${elapsed} of ${totalDays}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Projected Total</div>
+      <div class="value ${projClass}">SAR ${projectedTotal.toLocaleString('en', {minimumFractionDigits:0, maximumFractionDigits:0})}</div>
+      <div class="sub">at current pace</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Transactions</div>
+      <div class="value">${txns.length}</div>
+      <div class="sub">this period</div>
+    </div>
+  `;
+}
+
+function renderCategories(txns) {
+  const catTotals = {};
+  txns.forEach(t => {
+    catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+  });
+
+  const grid = document.getElementById('categoriesGrid');
+  grid.innerHTML = '';
+
+  const sortedCats = Object.keys(budgets).sort((a, b) => (catTotals[b] || 0) - (catTotals[a] || 0));
+
+  sortedCats.forEach(cat => {
+    const spent = catTotals[cat] || 0;
+    const budget = budgets[cat] || 0;
+    const pct = budget > 0 ? (spent / budget * 100) : 0;
+    const color = pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--yellow)' : 'var(--green)';
+    const remaining = budget - spent;
+
+    const card = document.createElement('div');
+    card.className = 'cat-card';
+    card.innerHTML = `
+      <div class="cat-header">
+        <span class="cat-name">${cat}</span>
+        <span class="cat-amount" style="color:${color}">SAR ${spent.toLocaleString('en', {maximumFractionDigits:0})} / ${budget.toLocaleString()}</span>
+      </div>
+      <div class="cat-bar">
+        <div class="cat-bar-fill" style="width:${Math.min(pct, 100)}%; background:${color}"></div>
+      </div>
+      <div class="cat-footer">
+        <span>${pct.toFixed(0)}% used</span>
+        <span>${remaining >= 0 ? 'SAR ' + remaining.toLocaleString('en', {maximumFractionDigits:0}) + ' left' : 'SAR ' + Math.abs(remaining).toLocaleString('en', {maximumFractionDigits:0}) + ' over'}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderDailyChart(txns) {
+  const chart = document.getElementById('dailyChart');
+  chart.innerHTML = '';
+
+  const dailyTotals = {};
+  txns.forEach(t => {
+    dailyTotals[t.date] = (dailyTotals[t.date] || 0) + t.amount;
+  });
+
+  const start = currentPeriodStart;
+  const end = getPeriodEnd(start);
+  const days = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(formatDate(d));
+  }
+
+  const maxVal = Math.max(...days.map(d => dailyTotals[d] || 0), 1);
+  const dailyBudget = Object.values(budgets).reduce((s, v) => s + v, 0) / days.length;
+
+  days.forEach(day => {
+    const val = dailyTotals[day] || 0;
+    const h = (val / maxVal) * 140;
+    const color = val > dailyBudget * 1.5 ? 'var(--red)' : val > dailyBudget ? 'var(--yellow)' : 'var(--blue)';
+    const dayNum = day.split('-')[2];
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chart-bar-wrapper';
+    wrapper.innerHTML = `
+      <div class="chart-bar" style="height:${Math.max(h, 2)}px; background:${color}">
+        <div class="tooltip">${day}: SAR ${val.toLocaleString('en', {maximumFractionDigits:0})}</div>
+      </div>
+      <div class="chart-label">${dayNum}</div>
+    `;
+    chart.appendChild(wrapper);
+  });
+}
+
+// ─── Transaction Table ────────────────────────────────────────────
+function getFilteredTransactions() {
+  const txns = getPeriodTransactions(currentPeriodStart);
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const catF = document.getElementById('catFilter').value;
+  const srcF = document.getElementById('sourceFilter').value;
+
+  return txns.filter(t => {
+    if (search && !t.merchant.toLowerCase().includes(search)) return false;
+    if (catF && t.category !== catF) return false;
+    if (srcF && t.source !== srcF) return false;
+    return true;
+  });
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = col === 'amount' ? -1 : 1; }
+  filterTable();
+}
+
+function filterTable() {
+  currentPage = 1;
+  renderTable();
+}
+
+function renderTable() {
+  let txns = getFilteredTransactions();
+
+  txns.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (sortCol === 'amount') return (va - vb) * sortDir;
+    return String(va).localeCompare(String(vb)) * sortDir;
+  });
+
+  const totalPages = Math.ceil(txns.length / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = txns.slice(start, start + PAGE_SIZE);
+
+  const body = document.getElementById('txBody');
+  body.innerHTML = page.map(t => `
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.merchant}</td>
+      <td class="amount-right">SAR ${t.amount.toLocaleString('en', {minimumFractionDigits:2})}</td>
+      <td><span class="cat-badge">${t.category}</span></td>
+      <td><span class="source-badge">${t.source === 'alrajhi' ? 'Al Rajhi' : 'SAB'}</span></td>
+    </tr>
+  `).join('');
+
+  // Pagination
+  const pag = document.getElementById('pagination');
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+  let html = '';
+  const maxButtons = 7;
+  let startP = Math.max(1, currentPage - 3);
+  let endP = Math.min(totalPages, startP + maxButtons - 1);
+  if (endP - startP < maxButtons - 1) startP = Math.max(1, endP - maxButtons + 1);
+
+  if (startP > 1) html += `<button onclick="goPage(1)">1</button><button disabled>...</button>`;
+  for (let i = startP; i <= endP; i++) {
+    html += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  if (endP < totalPages) html += `<button disabled>...</button><button onclick="goPage(${totalPages})">${totalPages}</button>`;
+  pag.innerHTML = html;
+}
+
+function goPage(p) { currentPage = p; renderTable(); }
+
+// ─── Monthly History ──────────────────────────────────────────────
+function renderHistory() {
+  const container = document.getElementById('monthlyHistory');
+  container.innerHTML = '';
+
+  // Find all periods with data
+  if (allTransactions.length === 0) return;
+
+  const dates = allTransactions.map(t => t.date).sort();
+  const firstDate = new Date(dates[0]);
+  const lastDate = new Date(dates[dates.length - 1]);
+
+  const periods = [];
+  let d = new Date(lastDate.getFullYear(), lastDate.getMonth(), 25);
+  if (lastDate.getDate() < 25) d.setMonth(d.getMonth() - 1);
+
+  while (d >= new Date(firstDate.getFullYear(), firstDate.getMonth() - 1, 25)) {
+    periods.push(new Date(d));
+    d = new Date(d.getFullYear(), d.getMonth() - 1, 25);
+  }
+
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
+
+  periods.forEach((pStart, idx) => {
+    const txns = getPeriodTransactions(pStart);
+    if (txns.length === 0) return;
+
+    const totalSpent = txns.reduce((s, t) => s + t.amount, 0);
+    const pct = (totalSpent / totalBudget * 100).toFixed(0);
+    const pctClass = pct > 100 ? 'red' : pct > 80 ? 'yellow' : 'green';
+
+    const catTotals = {};
+    txns.forEach(t => {
+      catTotals[t.category] = (catTotals[t.category] || 0) + t.amount;
+    });
+
+    const card = document.createElement('div');
+    card.className = 'month-card';
+    card.innerHTML = `
+      <div class="month-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <h3>${periodLabel(pStart)}</h3>
+        <span class="${pctClass}" style="font-weight:600;">SAR ${totalSpent.toLocaleString('en', {maximumFractionDigits:0})} (${pct}%)</span>
+      </div>
+      <div class="month-details${idx === 0 ? ' open' : ''}">
+        ${Object.keys(budgets).sort((a,b) => (catTotals[b]||0) - (catTotals[a]||0)).map(cat => {
+          const spent = catTotals[cat] || 0;
+          if (spent === 0) return '';
+          const budget = budgets[cat] || 0;
+          const cpct = budget > 0 ? (spent/budget*100).toFixed(0) : '?';
+          const cclass = cpct > 100 ? 'red' : cpct > 80 ? 'yellow' : '';
+          return `<div class="month-cat-row"><span>${cat}</span><span class="${cclass}">SAR ${spent.toLocaleString('en',{maximumFractionDigits:0})} / ${budget.toLocaleString()} (${cpct}%)</span></div>`;
+        }).join('')}
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// ─── Tab Switching ────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'transactions') filterTable();
+}
+
+// ─── Notion Export ────────────────────────────────────────────────
+function exportToNotion() {
+  const txns = getPeriodTransactions(currentPeriodStart);
+  const totalSpent = txns.reduce((s, t) => s + t.amount, 0);
+  const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
+
+  const catTotals = {};
+  txns.forEach(t => { catTotals[t.category] = (catTotals[t.category] || 0) + t.amount; });
+
+  let md = `# Budget Report: ${periodLabel(currentPeriodStart)}\n\n`;
+  md += `**Total Spent:** SAR ${totalSpent.toLocaleString('en',{maximumFractionDigits:0})} / ${totalBudget.toLocaleString()} (${(totalSpent/totalBudget*100).toFixed(1)}%)\n\n`;
+  md += `## Category Breakdown\n\n`;
+  md += `| Category | Spent | Budget | % |\n|---|---|---|---|\n`;
+
+  Object.keys(budgets).sort((a,b) => (catTotals[b]||0) - (catTotals[a]||0)).forEach(cat => {
+    const spent = catTotals[cat] || 0;
+    const budget = budgets[cat];
+    const pct = (spent/budget*100).toFixed(0);
+    const flag = pct > 100 ? ' :red_circle:' : pct > 80 ? ' :yellow_circle:' : '';
+    md += `| ${cat} | SAR ${spent.toLocaleString('en',{maximumFractionDigits:0})} | SAR ${budget.toLocaleString()} | ${pct}%${flag} |\n`;
+  });
+
+  md += `\n## Top 10 Merchants\n\n`;
+  const merchantTotals = {};
+  txns.forEach(t => { merchantTotals[t.merchant] = (merchantTotals[t.merchant] || 0) + t.amount; });
+  const topMerchants = Object.entries(merchantTotals).sort((a,b) => b[1] - a[1]).slice(0, 10);
+  topMerchants.forEach(([m, amt], i) => {
+    md += `${i+1}. **${m.trim()}** - SAR ${amt.toLocaleString('en',{maximumFractionDigits:0})}\n`;
+  });
+
+  navigator.clipboard.writeText(md).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+}
+
+// ─── Global Search ────────────────────────────────────────────────
+function openSearch() {
+  document.getElementById('searchOverlay').classList.add('open');
+  const input = document.getElementById('globalSearchInput');
+  input.value = '';
+  input.focus();
+  document.getElementById('globalSearchResults').innerHTML = '<div class="search-empty">Type to search across all transactions</div>';
+  document.getElementById('globalSearchFooter').innerHTML = 'Press <kbd style="background:var(--border);padding:1px 5px;border-radius:3px;">Esc</kbd> to close';
+}
+
+function closeSearch() {
+  document.getElementById('searchOverlay').classList.remove('open');
+}
+
+function globalSearch() {
+  const q = document.getElementById('globalSearchInput').value.toLowerCase().trim();
+  const results = document.getElementById('globalSearchResults');
+  const footer = document.getElementById('globalSearchFooter');
+
+  if (!q) {
+    results.innerHTML = '<div class="search-empty">Type to search across all transactions</div>';
+    footer.innerHTML = 'Press <kbd style="background:var(--border);padding:1px 5px;border-radius:3px;">Esc</kbd> to close';
+    return;
+  }
+
+  const matches = allTransactions.filter(t =>
+    t.merchant.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)
+  );
+
+  if (matches.length === 0) {
+    results.innerHTML = '<div class="search-empty">No transactions found</div>';
+    footer.innerHTML = '0 results';
+    return;
+  }
+
+  const shown = matches.slice(0, 50);
+  results.innerHTML = shown.map(t => {
+    const amtColor = '';
+    return `<div class="search-result-item" onclick="goToTransaction('${t.date}','${t.merchant.replace(/'/g,"\\'")}')">
+      <div class="search-result-left">
+        <span class="search-result-merchant">${highlightMatch(t.merchant, q)}</span>
+        <span class="search-result-meta">
+          <span>${t.date}</span>
+          <span class="cat-badge">${t.category}</span>
+          <span>${t.source === 'alrajhi' ? 'Al Rajhi' : 'SAB'}</span>
+        </span>
+      </div>
+      <span class="search-result-amount">SAR ${t.amount.toLocaleString('en',{minimumFractionDigits:2
