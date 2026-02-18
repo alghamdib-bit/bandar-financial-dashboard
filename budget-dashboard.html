@@ -234,14 +234,17 @@ let sortDir = -1;
 let currentPage = 1;
 const PAGE_SIZE = 50;
 
+const WORKER_URL = 'https://bandar-financial-dashboard.alghamdi-b.workers.dev';
+
 async function loadData() {
   try {
     const [txRes, budgetRes, catRes] = await Promise.all([
-      fetch('data/transactions.json'),
-      fetch('data/budgets.json'),
-      fetch('data/categories.json'),
+      fetch(WORKER_URL + '/transactions'),
+      fetch(WORKER_URL + '/budgets'),
+      fetch(WORKER_URL + '/categories'),
     ]);
-    allTransactions = await txRes.json();
+    const txData = await txRes.json();
+    allTransactions = txData.transactions;
     const budgetData = await budgetRes.json();
     budgets = budgetData.categories;
     const catData = await catRes.json();
