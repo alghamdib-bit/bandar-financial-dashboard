@@ -655,4 +655,53 @@ function globalSearch() {
           <span>${t.source === 'alrajhi' ? 'Al Rajhi' : 'SAB'}</span>
         </span>
       </div>
-      <span class="search-result-amount">SAR ${t.amount.toLocaleString('en',{minimumFractionDigits:2
+      <span class="search-result-amount">SAR ${t.amount.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+    </div>`;
+  }).join('');
+
+  footer.innerHTML = `${matches.length} result${matches.length !== 1 ? 's' : ''}${matches.length > 50 ? ' (showing 50)' : ''}`;
+}
+
+function highlightMatch(text, q) {
+  const idx = text.toLowerCase().indexOf(q);
+  if (idx === -1) return escapeHtml(text);
+  return escapeHtml(text.substring(0, idx)) +
+    `<mark style="background:rgba(59,130,246,0.3);color:var(--text);border-radius:2px;">${escapeHtml(text.substring(idx, idx + q.length))}</mark>` +
+    escapeHtml(text.substring(idx + q.length));
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function goToTransaction(date, merchant) {
+  closeSearch();
+  // Switch to transactions tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-transactions').classList.add('active');
+  document.querySelector('.tab[onclick*="transactions"]').classList.add('active');
+  // Set search filter
+  const searchInput = document.getElementById('searchInput');
+  searchInput.value = merchant;
+  filterTable();
+}
+
+// ─── Event Listeners ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+
+  // Keyboard shortcut: / to open search
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      openSearch();
+    }
+    if (e.key === 'Escape') closeSearch();
+  });
+
+  document.getElementById('globalSearchInput').addEventListener('input', globalSearch);
+});
+</script>
+</body>
+</html>
