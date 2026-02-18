@@ -283,6 +283,18 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
+    // --- Secret token auth (skip for /health) ---
+    if (path !== '/health') {
+      const secret = env.DASHBOARD_SECRET;
+      const provided = request.headers.get('X-Dashboard-Secret') || url.searchParams.get('secret');
+      if (!secret || provided !== secret) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Only allow GET (and POST for cache invalidation)
     if (request.method !== 'GET' && !(request.method === 'POST' && path === '/cache/invalidate')) {
       return errorResponse('Method not allowed', 405);

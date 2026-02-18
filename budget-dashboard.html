@@ -235,13 +235,15 @@ let currentPage = 1;
 const PAGE_SIZE = 50;
 
 const WORKER_URL = 'https://bandar-financial-dashboard.alghamdi-b.workers.dev';
+const DASHBOARD_SECRET = '6f6c2453dd2295fce13187b2b133643c8893cde98053726b158af69575cc94d1';
+const FETCH_OPTS = { headers: { 'X-Dashboard-Secret': DASHBOARD_SECRET } };
 
 async function loadData() {
   try {
     const [txRes, budgetRes, catRes] = await Promise.all([
-      fetch(WORKER_URL + '/transactions'),
-      fetch(WORKER_URL + '/budgets'),
-      fetch(WORKER_URL + '/categories'),
+      fetch(WORKER_URL + '/transactions', FETCH_OPTS),
+      fetch(WORKER_URL + '/budgets', FETCH_OPTS),
+      fetch(WORKER_URL + '/categories', FETCH_OPTS),
     ]);
     const txData = await txRes.json();
     allTransactions = txData.transactions;
