@@ -11,7 +11,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Environment variables (non-secret)
 [vars]
-NOTION_DB_ID = "da9870a7-4b62-4248-af06-4fbf25a56289"
+NOTION_DB_ID = "c494c61e-d7eb-41e1-b615-849b73350e7e"
 
 # Secrets set via: wrangler secret put NOTION_TOKEN
 # Secrets set via: wrangler secret put INVALIDATE_SECRET
