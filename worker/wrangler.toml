@@ -1,0 +1,17 @@
+name = "bandar-financial-dashboard"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# KV namespace for caching (will be created via Cloudflare dashboard or wrangler)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "PLACEHOLDER_KV_ID"        # Replace after creating KV namespace
+# preview_id = "PLACEHOLDER_KV_PREVIEW_ID"
+
+# Environment variables (non-secret)
+[vars]
+NOTION_DB_ID = "da9870a7-4b62-4248-af06-4fbf25a56289"
+
+# Secrets set via: wrangler secret put NOTION_TOKEN
+# Secrets set via: wrangler secret put INVALIDATE_SECRET
